@@ -112,7 +112,7 @@ int MBT_Release(ModBusTCP_Link mbt_link)
 		mbt_link->linkStat = LINK_DOWN; /* not so necessary */
 		socket_close(mbt_link->sFd);
 	}
-        SEM_GIVE(mbt_link->semMbt);
+        /* SEM_GIVE(mbt_link->semMbt); */
 
         if(mbt_link->semMbt) SEM_DELETE(mbt_link->semMbt);
         if(mbt_link->name) free(mbt_link->name);
@@ -274,6 +274,10 @@ int MBT_Disconnect(ModBusTCP_Link mbt_link, unsigned int errCode)
                 /*mbt_link->LtID = 0;*/		/* We don't reset it here, we reset it when we re-connect */
 		SEM_GIVE(mbt_link->semMbt);
 		if(MBT_DRV_DEBUG) printf("Disconnect %s because of 0x%08x\n", mbt_link->name, errCode);
+	}
+	else
+	{
+		SEM_GIVE(mbt_link->semMbt);
 	}
 	return 0;
 }
@@ -499,6 +503,11 @@ static int MBT_Read_Response(ModBusTCP_Link mbt_link, unsigned char expect_fcode
 	*pPDUsize = PDUsize;
 	return 0;
 }
+
+/*********************************************************************************************************/
+/* Below we implement all MBT functions based on MBT_Write_Request and MBT_Read_Response. MBT is a ping- */
+/* -pong protocol, so we need semaphore to protect each pair of MBT_Write_Request and MBT_Read_Response. */
+/*********************************************************************************************************/
 
 /* This function is doing MBT_F1, pRByteData must be pre-malloced with length of (RBitCount+7)/8 bytes */
 /* Caller can use this function to read the digital output setting from output image */

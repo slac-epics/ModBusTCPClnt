@@ -32,7 +32,9 @@
 #error	"You need EPICS 3.14 or above because we need OSI support!"
 #endif
 
-#define MODBUSTCPCLNT_DRV_VERSION "ModBusTCP Client Driver Version 1.0.9"
+#define MODBUSTCPCLNT_DRV_VERSION "ModBusTCP Client Driver Version 1.1.0"
+
+#include "drvModBusTCPClnt.h"
 
 static  long    MBT_Clnt_EPICS_Init();       /* this is the init will be automatically called in drv init */
 static  long    MBT_Clnt_EPICS_Report(int level);
@@ -47,6 +49,8 @@ epicsExportAddress(drvet,drvModBusTCPClnt);
 
 static  long    MBT_Clnt_EPICS_Init()
 {
+	/* Force link */
+	if(0)	MBT_Test("0.0.0.0");
         return  0;
 }
 

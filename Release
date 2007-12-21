@@ -17,4 +17,8 @@ R1-0-6 --> R1-0-7:	Add error code definition to drvModBusTCPClnt.h
 			Turn debug flag to off by default
 R1-0-7 --> R1-0-8:	Improve README file, improve dbior report function and include stdio.h, fix transaction ID matching bug
 R1-0-8 --> R1-0-9:	Add iocsh register, fix typo of IPAdrr, add extern "C" declaration, build for both OSI and vxWorks
+R1-0-9 --> R1-1-0:	Add comment to emphasize semaphore to protect internal ping-pong read and write functions
+			Fix bug to release semaphore in disconnect function
+			semDelete before semGive
+			Force link to avoid U symble
 
