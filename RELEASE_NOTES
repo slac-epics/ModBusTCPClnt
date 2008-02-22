@@ -1,4 +1,10 @@
+ModBusTCPClnt-R1-1-0-1: Cosmetics
+modifications needed to bring the module to EPICS R3-14-9 standard
+Build with base-R3-14-9-lcls1 and rtems 4.7.1
+
+
 This is R1-0-9.
+
 R1-0 --> R1-0-1:	We add a counter for number of successful (re)connection;
 			We add a function to read this number as well;
 			We clear error when we successfully (re)connect;
