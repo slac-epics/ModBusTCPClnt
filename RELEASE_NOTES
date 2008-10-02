@@ -1,3 +1,5 @@
+ModBusTCPClnt-R1-1-0-2: Build with base-R3-14-8-2-lcls2
+
 ModBusTCPClnt-R1-1-0-1: Cosmetics
 modifications needed to bring the module to EPICS R3-14-9 standard
 Build with base-R3-14-9-lcls1 and rtems 4.7.1
