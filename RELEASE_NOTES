@@ -1,3 +1,21 @@
+#==============================================================
+#
+#  Name: RELEASE_NOTES
+#
+#  Rem:  This file contains the the release notes for
+#        the ModBus TCP Client package.
+#
+#  Auth:  dd-mmm-yyyy, Sheng Peng         (PENGS)
+#  Rev:   dd-mmm-yyyy, Reviewer's Name    (USERNAME)
+#--------------------------------------------------------------
+#  Mod:
+#         28-Apr-2009, K. Luchini         (LUCHINI):
+#          release modBusTCPClnt-R2-0-0
+#
+#==============================================================
+#
+ModBusTCPClnt-R2-0-0: Build with rtems-4.9.1 and base-R3-14-8-2-lcls3
+
 ModBusTCPClnt-R1-1-0-2: Build with base-R3-14-8-2-lcls2
 
 ModBusTCPClnt-R1-1-0-1: Cosmetics
