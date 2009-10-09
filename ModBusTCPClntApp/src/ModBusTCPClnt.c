@@ -156,12 +156,12 @@ const char * MBT_GetName(ModBusTCP_Link mbt_link)
 /* Caller should supply the paddr with malloced memory */
 int MBT_GetAddr(ModBusTCP_Link mbt_link, struct sockaddr_in * paddr)
 {
-        /* No mutex needed, because after Init, nobody should change it */
-        if(mbt_link == NULL)
-			return -1;
+	/* No mutex needed, because after Init, nobody should change it */
+	if(mbt_link == NULL)
+		return -1;
 
-        memcpy( (char *)paddr, (const char *)&(mbt_link->addr), sizeof(struct sockaddr_in) );
-        return 0;
+	memcpy( (char *)paddr, (const char *)&(mbt_link->addr), sizeof(struct sockaddr_in) );
+	return 0;
 }
 
 /* This function tries to set up the TCP connection to the MBT device with timeout of toutsec seconds */
