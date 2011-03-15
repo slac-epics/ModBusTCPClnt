@@ -9,6 +9,9 @@
 #  Rev:   dd-mmm-yyyy, Reviewer's Name    (USERNAME)
 #--------------------------------------------------------------
 #  Mod:
+#         15-Mar-2011, A. Alarcon         (alarcon):
+#          release modBusTCPClnt-R2-2-1
+#
 #         19-Mar-2010, S. Hoobler         (SONYA):
 #          release modBusTCPClnt-R2-2-0
 #
@@ -17,6 +20,8 @@
 #
 #==============================================================
 #
+ModBusTCPClnt-R2-2-1:     Modified configure/RELEASE to work with eco
+
 ModBusTCPClnt-R2-2-0:     Built against rtems 4.9.4 and EPICS BASE:
                           base-R3-14-8-2-lcls6
 
