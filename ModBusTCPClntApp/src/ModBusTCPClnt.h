@@ -91,7 +91,7 @@ extern "C" {
 /* ModBusTCP_CB and ModBusTCP_Link definitions */
 typedef struct ModBusTCP_CB
 {
-	SEMAPHORE		semMbt; /* to protect access to mbt station */
+	void		*	semMbt; /* to protect access to mbt station */
 	char		*	name;	/* dynamic malloc for mbt station name */
 	struct sockaddr_in	addr;	/* all are network order */
 
@@ -197,7 +197,7 @@ int MBT_Function4(ModBusTCP_Link mbt_link, unsigned short int wRIRoffset, unsign
 /* This function is doing MBT_F5, state will be TRUE(on) or FALSE(off) */
 /* Caller can use this function to set single digital output in output image */
 /* bWOoffset means bit write offset for Output image only */
-int MBT_Function5(ModBusTCP_Link mbt_link, unsigned short int bWOoffset, BOOL state, unsigned int toutsec);
+int MBT_Function5(ModBusTCP_Link mbt_link, unsigned short int bWOoffset, int state, unsigned int toutsec);
 
 /* This function is doing MBT_F6, Wworddata is local order, this function will convert it to big-endian then send */
 /* Caller can use this function to set single analog output in output image or write register */

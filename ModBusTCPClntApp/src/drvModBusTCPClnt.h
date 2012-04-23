@@ -10,9 +10,9 @@
 #ifdef	vxWorks
 #include "semLib.h"
 #define SEM_CREATE()    semMCreate(SEM_INVERSION_SAFE|SEM_DELETE_SAFE|SEM_Q_PRIORITY)
-#define SEM_DELETE(x)   semDelete((x))
-#define SEM_TAKE(x)     semTake((x),WAIT_FOREVER)
-#define SEM_GIVE(x)     semGive((x))
+#define SEM_DELETE(x)   semDelete((SEMAPHORE)(x))
+#define SEM_TAKE(x)     semTake((SEMAPHORE)(x),WAIT_FOREVER)
+#define SEM_GIVE(x)     semGive((SEMAPHORE)(x))
 #define	SEMAPHORE	SEM_ID
 #else
 #include <epicsVersion.h>
@@ -23,9 +23,9 @@
 #endif
 
 #define SEM_CREATE()    epicsMutexMustCreate()
-#define SEM_DELETE(x)   epicsMutexDestroy((x))
-#define SEM_TAKE(x)     epicsMutexMustLock((x))
-#define SEM_GIVE(x)     epicsMutexUnlock((x))
+#define SEM_DELETE(x)   epicsMutexDestroy((SEMAPHORE)(x))
+#define SEM_TAKE(x)     epicsMutexMustLock((SEMAPHORE)(x))
+#define SEM_GIVE(x)     epicsMutexUnlock((SEMAPHORE)(x))
 #define	SEMAPHORE	epicsMutexId
 typedef	int	BOOL;
 #endif

@@ -919,7 +919,7 @@ int MBT_Function4(ModBusTCP_Link mbt_link, unsigned short int wRIRoffset, unsign
 /* This function is doing MBT_F5, state will be TRUE(on) or FALSE(off) */
 /* Caller can use this function to set single digital output in output image */
 /* bWOoffset means bit write offset for Output image only */
-int MBT_Function5(ModBusTCP_Link mbt_link, unsigned short int bWOoffset, BOOL state, unsigned int toutsec)
+int MBT_Function5(ModBusTCP_Link mbt_link, unsigned short int bWOoffset, int state, unsigned int toutsec)
 {
 	struct timeval  timeout;
 	int             status;
