@@ -1,5 +1,57 @@
 #include "SocketWithTimeout.h"
+#include "drvModBusTCPClnt.h"
 #include "ModBusTCPClnt.h"
+
+/* Because we may send string via Channel Access, So we limit it less than 40 bytes */
+/* You need MBTC_Error_Msg[(MBT_ERR_XXX&0x0000FF00)>>8] to access right string */
+const static char MBTC_Error_Msg[30][40]=
+{
+	/*	1234567890123456789012345678901234567890 */
+	/*0*/	"MBTC: No Error",
+	/*1*/	"MBTC: Socket Error",
+	/*2*/	"MBTC: Connect Refused",
+	/*3*/	"MBTC: Connect Timeout",
+	/*4*/	"MBTC: Write Socket Error",
+	/*5*/	"MBTC: Read MBAP_HDR Error",
+	/*6*/	"MBTC: MBAP_HDR Len Error",
+	/*7*/	"MBTC: Malloc RESPDU Error",
+	/*8*/	"MBTC: Read RESPDU Error",
+	/*9*/	"EXCPT PDU:",/* not used, we use excpt pdu definition */
+	/*A*/	"MBTC: TCP_NDLY Error",
+	/*B*/	"MBTC: KEEP_ALIVE Error",
+	/*C*/	"MBTC: Wrong RES fcode",
+	/*D*/	"MBTC: RES Data Size Error",
+	/*E*/	"MBTC: Wrong RES TID",
+	/*F*/	"MBTC: Malloc ADU Error",
+	/*10*/	"MBTC: Write RES DisMactch",
+	/*11*/	"MBTC: Send Size too Big",
+	/*12*/	"MBTC: Illegal PID",
+	/*13*/	"MBTC: Wrong RES UNIT",
+	/*14*/	"MBTC: No Connection",
+	/*15*/	"MBTC: Wrong RES SFUNC",
+	/*16*/	"MBTC: Diag RES Size Error",
+	/*17*/	"MBTC: Malloc REQPDU Error"
+	/* To add new ERR code, you need new message */
+};
+
+/* So far specification only define to 0xB, but we reserve 0xFF for safe */
+#define	MAX_EXCPT_PDU_ERRCODE	0xB
+const static char EXCPT_PDU_Msg[MAX_EXCPT_PDU_ERRCODE+1][40]=
+{
+        /*      1234567890123456789012345678901234567890 */
+        /*0*/   "EXCPT PDU: No Error",
+        /*1*/   "EXCPT PDU: Wrong Func",
+        /*2*/   "EXCPT PDU: Wrong Addr",
+        /*3*/   "EXCPT PDU: Wrong Data",
+        /*4*/   "EXCPT PDU: Slave Fail",
+        /*5*/   "EXCPT PDU: Ack",
+        /*6*/   "EXCPT PDU: Slave Busy",
+        /*7*/   "EXCPT PDU: Not Defined",
+        /*8*/   "EXCPT PDU: Parity Error",
+        /*9*/   "EXCPT PDU: Not Defined",
+        /*A*/   "EXCPT PDU: GTW NOPATH",
+        /*B*/   "EXCPT PDU: GTW TGT FAIL",
+};
 
 /* TODO: Replace SocketWithTimeout.h with #include of EPICS header osiSock.h
  * Can't do that easily as SocketWithTimeout.c has some functions we need so
@@ -17,7 +69,7 @@ int MBT_DRV_DEBUG = 0;
 /* It is user's responsibility to guarantee unique deviceName */
 /* If you use ModBusTCP gateway and specify UNIT to 0, you must understand 0 means broadcast and you should  */
 /* Not use it to read any thing */
-ModBusTCP_Link MBT_Init(char * deviceName, char * deviceIP, unsigned short int port, unsigned char UNIT)
+ModBusTCP_Link MBT_Init( const char * deviceName,  const char * deviceIP, unsigned short int port, unsigned char UNIT)
 {
 	ModBusTCP_Link	mbt_link=NULL;
 
@@ -47,13 +99,13 @@ ModBusTCP_Link MBT_Init(char * deviceName, char * deviceIP, unsigned short int p
 
 	/* Check the structure size, see if we need packed */
 	if(MBT_DRV_DEBUG)
-		printf("\n\nMBAP_HDR %d\n",sizeof(struct MBAP_HDR));
+		printf("\n\nMBAP_HDR %zu\n",sizeof(struct MBAP_HDR));
 	if(MBT_DRV_DEBUG)
-		printf(	"MBT_F1_REQ %d, MBT_F2_REQ %d, MBT_F3_REQ %d, MBT_F4_REQ %d, MBT_F5_REQ %d\n",
+		printf(	"MBT_F1_REQ %zu, MBT_F2_REQ %zu, MBT_F3_REQ %zu, MBT_F4_REQ %zu, MBT_F5_REQ %zu\n",
 				sizeof(struct MBT_F1_REQ),sizeof(struct MBT_F2_REQ),sizeof(struct MBT_F3_REQ),
 				sizeof(struct MBT_F4_REQ),sizeof(struct MBT_F5_REQ));
 	if(MBT_DRV_DEBUG)
-		printf(	"MBT_F6_REQ %d, MBT_F8_REQ %d, MBT_F15_REQ %d, MBT_F16_REQ %d, MBT_F23_REQ %d\n\n",
+		printf(	"MBT_F6_REQ %zu, MBT_F8_REQ %zu, MBT_F15_REQ %zu, MBT_F16_REQ %zu, MBT_F23_REQ %zu\n\n",
 				sizeof(struct MBT_F6_REQ),sizeof(struct MBT_F8_REQ),sizeof(struct MBT_F15_REQ),
 				sizeof(struct MBT_F16_REQ),sizeof(struct MBT_F23_REQ));
 
@@ -428,7 +480,7 @@ static int MBT_Write_Request(ModBusTCP_Link mbt_link, unsigned char *pPDUbuf, un
 	}
 
 	memcpy( pADUbuf, (char *)&mbap_hdr, sizeof(struct MBAP_HDR) );
-	memcpy(pADUbuf+sizeof(struct MBAP_HDR), pPDUbuf, PDUsize);
+	memcpy( pADUbuf + sizeof(struct MBAP_HDR), pPDUbuf, PDUsize );
 
 	status = writeWithTimeout(mbt_link->sFd, (const char *)pADUbuf, sizeof(struct MBAP_HDR) + PDUsize, ptimeout);
 	if(status == SOCKET_ERROR)
@@ -554,8 +606,8 @@ static int MBT_Read_Response(
 		/* We finally decide we don't cut the link because too many remote err */
 		/* Because if we do that low level, the high level has no chance to reset MBT device */
 		/* We will let caller get num of remote error and decides to do reset and disconnect */
-		/* if(mbt_link->remoteErrCnt > MAX_MBT_REMOTE_ERR)
-			MBT_Disconnect(mbt_link, MBT_ERR_MANY_EXCPT|mbt_excpt_pdu->errcode); */
+		/* if(mbt_link->remoteErrCnt > MAX_MBT_REMOTE_ERR) */
+		/*	MBT_Disconnect(mbt_link, MBT_ERR_MANY_EXCPT|mbt_excpt_pdu->errcode); */
 		free(pPDUbuf);
 		return -1;
 	}

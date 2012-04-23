@@ -33,7 +33,7 @@ PROD_IOC_vxWorks += ModBusTCPClntLib
 DBD += ModBusTCPClnt.dbd
 
 # Others device driver based on ModBusTCP client need this
-INC += drvModBusTCPClnt.h
+INC += ModBusTCPClnt.h
 
 # Add locally compiled object code
 ModBusTCPClnt_SRCS += SocketWithTimeout.c

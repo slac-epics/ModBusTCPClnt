@@ -35,6 +35,7 @@
 #define MODBUSTCPCLNT_DRV_VERSION "ModBusTCP Client Driver Version 1.1.0"
 
 #include "drvModBusTCPClnt.h"
+#include "ModBusTCPClnt.h"
 
 static  long    MBT_Clnt_EPICS_Init();       /* this is the init will be automatically called in drv init */
 static  long    MBT_Clnt_EPICS_Report(int level);
