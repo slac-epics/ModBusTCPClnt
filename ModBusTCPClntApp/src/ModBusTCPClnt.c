@@ -120,7 +120,7 @@ ModBusTCP_Link MBT_Init( const char * deviceName,  const char * deviceIP, unsign
 	/* Most of structure member will be inited by bzero */
 	memset( (char *)mbt_link, 0, sizeof(struct ModBusTCP_CB) );
 	mbt_link->sFd = INVALID_SOCKET;
-	/* not necessary blow because they are already 0, just for emphasize here */
+	/* below is not necessary because they are already 0, just here for emphasis */
 	mbt_link->linkStat = LINK_DOWN;
 	mbt_link->NthOfConn = 0;
 	mbt_link->lastErr = MBT_ERR_NO_ERROR;
@@ -156,7 +156,7 @@ ModBusTCP_Link MBT_Init( const char * deviceName,  const char * deviceIP, unsign
 	/* Remember UNIT, this is must have */
 	mbt_link->UNIT = UNIT;
 
-	/* We got all must have ready, now we return the refence */
+	/* We got all must have ready, now we return the reference */
 	return mbt_link;
 
 init_fail:
