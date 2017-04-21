@@ -19,7 +19,11 @@
 #          release modBusTCPClnt-R2-0-0
 #
 #==============================================================
-#
+
+R2.3.0:			Apr-21-2017: Marcio Donadio
+			- Module migrated to EPICS 3.15, to GIT and to GIT 
+			workflow
+
 ModBusTCPClnt-R2-2-1:     Modified configure/RELEASE to work with eco
 
 ModBusTCPClnt-R2-2-0:     Built against rtems 4.9.4 and EPICS BASE:
