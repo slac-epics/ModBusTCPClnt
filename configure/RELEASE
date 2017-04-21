@@ -1,35 +1,17 @@
-#RELEASE Location of external products
+# RELEASE
+# Defines location of external products
 # Run "gnumake clean uninstall install" in the application
 # top directory each time this file is changed.
-include $(TOP)/RELEASE_SITE
-TEMPLATE_TOP=$(EPICS_BASE)/templates/makeBaseApp/top
+-include $(TOP)/configure/RELEASE.local
 
-# ==========================================================
-# We will include some variables to indicate where 
-# our epics, base, modules, iocTop live.
-# We also include a variable for the version of EPICS BASE
-# =========================================================
-include $(TOP)/RELEASE_SITE
-# =========================================================
-
-TEMPLATE_TOP=$(EPICS_BASE)/templates/makeBaseApp/top
-
-# =============================================================
-# If you don't want to install into $(TOP) then
-# define INSTALL_LOCATION_APP here
-# =============================================================
-#INSTALL_LOCATION_APP=<fullpathname>
-
-# ==============================================================
-# Define the cvs module version of EPICS BASE that you will use
-# =============================================================
-BASE_MODULE_VERSION=$(EPICS_BASE_VER)
-
-# =================================================================
-# Define EPICS_BASE
-# EPICS_BASE usually appears last so other apps can override stuff:
-# =================================================================
-EPICS_BASE=$(BASE_SITE_TOP)/$(BASE_MODULE_VERSION)
-
-# End of file
+# Check for valid macro definitions for module release directories
+# You can add tests here to make sure RELEASE.local defined valid
+# macros for all the module dependencies
+#ifeq ($(wildcard $(EPICS_BASE)/include),)
+#$(error Invalid EPICS_BASE: $(EPICS_BASE))
+#endif
+#ifeq ($(wildcard $(ASYN)/include),)
+#$(error Invalid ASYN: $(ASYN))
+#endif
+#...
 
