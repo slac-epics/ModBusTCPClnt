@@ -2,39 +2,9 @@
 /* even we failed to connect to it. But we have to have semMbt, name  */
 /* and addr and UNIT available for re-connect */
 
-/* We try to make this driver good for epics OSI or pure vxWorks. */
-/* The only thing special is the semaphore */
 #ifndef	_ModBusTCPClnt_H_
 #define	_ModBusTCPClnt_H_
 
-#ifdef _WIN32
-#include <winsock2.h>
-#else
-#include <netinet/in.h>
-#endif
-
-#ifdef	vxWorks
-#include "semLib.h"
-#define SEM_CREATE()    semMCreate(SEM_INVERSION_SAFE|SEM_DELETE_SAFE|SEM_Q_PRIORITY)
-#define SEM_DELETE(x)   semDelete((x))
-#define SEM_TAKE(x)     semTake((x),WAIT_FOREVER)
-#define SEM_GIVE(x)     semGive((x))
-#define	SEMAPHORE	SEM_ID
-#else
-#include <epicsVersion.h>
-#if     EPICS_VERSION>=3 && EPICS_REVISION>=14
-#include "epicsMutex.h"
-#else
-#error  "You need EPICS 3.14 or above because we need OSI support!"
-#endif
-
-#define SEM_CREATE()    epicsMutexMustCreate()
-#define SEM_DELETE(x)   epicsMutexDestroy((x))
-#define SEM_TAKE(x)     epicsMutexMustLock((x))
-#define SEM_GIVE(x)     epicsMutexUnlock((x))
-#define	SEMAPHORE	epicsMutexId
-typedef	int	BOOL;
-#endif
 
 /**************************************************************************************************/
 /********************* Here are something about ModBusTCP specification ***************************/
@@ -70,6 +40,7 @@ typedef	int	BOOL;
 /* All function codes of MBT are less than 0x80, MSB set means exception response */
 #define	MBT_EXCPT_FC_MASK	0x80
 #define	MBT_NORM_FC_MASK	0x7F
+
 /* The communication of MBT is ping-pong, one request is expecting only one response */
 /* The response to the request must copy the Transaction ID, UNIT, Protocol ID must be 0      */
 /* The function code of response without MSB must be same as request, MSB indicates exception */
@@ -111,65 +82,16 @@ typedef	int	BOOL;
 extern "C" {
 #endif  /* __cplusplus */
 
-/* Because we may send string via Channel Access, So we limit it less than 40 bytes */
-/* You need MBTC_Error_Msg[(MBT_ERR_XXX&0x0000FF00)>>8] to access right string */
-const static char MBTC_Error_Msg[30][40]=
-{
-	/*	1234567890123456789012345678901234567890 */
-	/*0*/	"MBTC: No Error",
-	/*1*/	"MBTC: Socket Error",
-	/*2*/	"MBTC: Connect Refused",
-	/*3*/	"MBTC: Connect Timeout",
-	/*4*/	"MBTC: Write Socket Error",
-	/*5*/	"MBTC: Read MBAP_HDR Error",
-	/*6*/	"MBTC: MBAP_HDR Len Error",
-	/*7*/	"MBTC: Malloc RESPDU Error",
-	/*8*/	"MBTC: Read RESPDU Error",
-	/*9*/	"EXCPT PDU:",/* not used, we use excpt pdu definition */
-	/*A*/	"MBTC: TCP_NDLY Error",
-	/*B*/	"MBTC: KEEP_ALIVE Error",
-	/*C*/	"MBTC: Wrong RES fcode",
-	/*D*/	"MBTC: RES Data Size Error",
-	/*E*/	"MBTC: Wrong RES TID",
-	/*F*/	"MBTC: Malloc ADU Error",
-	/*10*/	"MBTC: Write RES DisMactch",
-	/*11*/	"MBTC: Send Size too Big",
-	/*12*/	"MBTC: Illegal PID",
-	/*13*/	"MBTC: Wrong RES UNIT",
-	/*14*/	"MBTC: No Connection",
-	/*15*/	"MBTC: Wrong RES SFUNC",
-	/*16*/	"MBTC: Diag RES Size Error",
-	/*17*/	"MBTC: Malloc REQPDU Error"
-	/* To add new ERR code, you need new message */
-};
-
-/* So far specification only define to 0xB, but we reserve 0xFF for safe */
-#define	MAX_EXCPT_PDU_ERRCODE	0xB
-const static char EXCPT_PDU_Msg[MAX_EXCPT_PDU_ERRCODE+1][40]=
-{
-        /*      1234567890123456789012345678901234567890 */
-        /*0*/   "EXCPT PDU: No Error",
-        /*1*/   "EXCPT PDU: Wrong Func",
-        /*2*/   "EXCPT PDU: Wrong Addr",
-        /*3*/   "EXCPT PDU: Wrong Data",
-        /*4*/   "EXCPT PDU: Slave Fail",
-        /*5*/   "EXCPT PDU: Ack",
-        /*6*/   "EXCPT PDU: Slave Busy",
-        /*7*/   "EXCPT PDU: Not Defined",
-        /*8*/   "EXCPT PDU: Parity Error",
-        /*9*/   "EXCPT PDU: Not Defined",
-        /*A*/   "EXCPT PDU: GTW NOPATH",
-        /*B*/   "EXCPT PDU: GTW TGT FAIL",
-};
-
 /* We finally decide we don't cut the link because of too many remote errors */
 /* Because if we do that low level, the high level has no chance to reset MBT device */
 /* We will let caller get num of remote errors and decide to do reset and disconnect */
 /*#define MAX_MBT_REMOTE_ERR    10*/
 /*#define MBT_ERR_MANY_EXCPT	0xFFFF0000 */	/* too many exceptions */
+
+/* ModBusTCP_CB and ModBusTCP_Link definitions */
 typedef struct ModBusTCP_CB
 {
-	SEMAPHORE		semMbt; /* to protect access to mbt station */
+	void		*	semMbt; /* to protect access to mbt station */
 	char		*	name;	/* dynamic malloc for mbt station name */
 	struct sockaddr_in	addr;	/* all are network order */
 
@@ -188,158 +110,6 @@ typedef struct ModBusTCP_CB
 	unsigned char		UNIT;	/* Slave identifier */
 }	* ModBusTCP_Link;	/* it is not necessary to say packed here, cause we access all member by name */
 
-/* MBAP header */
-typedef struct MBAP_HDR
-{
-        unsigned short int      tID;    /* transaction ID, here is big-endian */
-        unsigned short int      pID;    /* protocol ID, here is 0 */
-        unsigned short int      len;    /* # of following bytes, include UNIT and PDU size, big-endian */
-        unsigned char           UNIT;   /* Slave identifier */
-}__attribute__ ((packed))       MBAP_HDR;
-
-/* The exception PDU */
-typedef struct MBT_EXCPT_PDU
-{
-        unsigned char           fCode;  /* Function code with MSB set */
-        unsigned char           errcode;   /* error code */
-}__attribute__ ((packed))       MBT_EXCPT_PDU;
-
-/***********************************************************************************************/
-/*********************** Request PDU and Response PDU definition *******************************/
-/* We use xXYYYoffset to name offset, x is b(bit) or w(word), X is R(read) or W(Write)         */
-/* YYY is the combination of I(input image) O(output image) R(registers)                       */
-/* Dworddata means 16 bits scalar value for Diag, and WByteData means byte array to write      */
-/***********************************************************************************************/
-/************* MBT Function 1, Read digital outputs setting ******************************/
-typedef struct MBT_F1_REQ
-{
-        unsigned char           fCode;  /* Function code, will be hardcode to 1 */
-        unsigned short int      bROoffset; /* bits offset in output memory image, big-endian */
-        unsigned short int      RBitCount;  /* number of bits to read, big-endian */
-}__attribute__ ((packed))       MBT_F1_REQ;
-
-typedef struct MBT_F1_RES
-{
-        unsigned char           fCode;	/* Function code, must to 1 */
-        unsigned char		RByteCount; /* How many bytes following */
-        unsigned char		RByteData[1];  /* byte data */
-}__attribute__ ((packed))       MBT_F1_RES;
-
-/************* MBT Function 2, Read digital inputs *****************************************/
-typedef struct MBT_F2_REQ
-{
-        unsigned char           fCode;  /* Function code, will be hardcode to 2 */
-        unsigned short int      bRIoffset; /* bits offset in input memory image, big-endian */
-        unsigned short int      RBitCount;  /* number of bits to read, big-endian */
-}__attribute__ ((packed))       MBT_F2_REQ;
-/* Response PDU of FUNC 2 is same as FUNC 1 */
-typedef struct MBT_F1_RES	MBT_F2_RES;
-
-/************* MBT Function 3, Read Analong inputs and outputs and registers ***************/
-typedef struct MBT_F3_REQ
-{
-        unsigned char           fCode;  /* Function code, will be hardcode to 3 */
-        unsigned short int      wRIORoffset; /* word 16 bits offset in both memory image and registers, big-endian */
-        unsigned short int      RWordCount;  /* number of words to read, big-endian */
-}__attribute__ ((packed))       MBT_F3_REQ;
-
-typedef struct MBT_F3_RES
-{
-        unsigned char           fCode;  /* Function code, must be 3 */
-        unsigned char           RByteCount; /* How many bytes following */
-        unsigned short int	RWordData[1];  /* word data, big endian */
-}__attribute__ ((packed))       MBT_F3_RES;
-
-/************* MBT Function 4, Read Analong inputs and registers ****************************/
-typedef struct MBT_F4_REQ
-{
-        unsigned char           fCode;  /* Function code, will be hardcode to 4 */
-        unsigned short int      wRIRoffset; /* word 16 bits offset in input memory image and registers, big-endian */
-        unsigned short int      RWordCount;  /* number of words to read, big-endian */
-}__attribute__ ((packed))       MBT_F4_REQ;
-/* Response PDU of FUNC 4 is same as FUNC 3 */
-typedef struct MBT_F3_RES       MBT_F4_RES;
-
-/************* MBT Function 5, Set single digital output ************************************/
-typedef struct MBT_F5_REQ
-{
-        unsigned char           fCode;  /* Function code, will be hardcode to 5 */
-        unsigned short int      bWOoffset; /* bits offset in output memory image, big-endian */
-        unsigned short int      Wworddata;  /* must be either on(0xFF00) or off(0x0000), big-endian */
-}__attribute__ ((packed))       MBT_F5_REQ;
-/* Response PDU for FUNC 5 is exact same as query */
-typedef struct MBT_F5_REQ	MBT_F5_RES;
-
-/************* MBT Function 6, Set single analog output *************************************/
-typedef struct MBT_F6_REQ
-{
-        unsigned char           fCode;  /* Function code, will be hardcode to 6 */
-        unsigned short int      wWORoffset; /* word offset in output memory image and register, big-endian */
-        unsigned short int      Wworddata;  /* big-endian */
-}__attribute__ ((packed))       MBT_F6_REQ;
-/* Response PDU for FUNC 6 is exact same as query */
-typedef struct MBT_F6_REQ	MBT_F6_RES;
-
-/************* MBT Function 8, Diagnostics **************************************************/
-typedef struct MBT_F8_REQ
-{
-        unsigned char           fCode;  /* Function code, will be hardcode to 8 */
-        unsigned short int      subFunction; /* sub-function code, big-endian */
-        unsigned short int      Dworddata;  /* big-endian, mostly 0 */
-}__attribute__ ((packed))       MBT_F8_REQ;
-/* Response PDU for FUNC 8 is exact same as query */
-typedef struct MBT_F8_REQ	MBT_F8_RES;
-
-/* MBT Function 15, set number of digital outputs */
-typedef struct MBT_F15_REQ
-{
-        unsigned char           fCode;  /* Function code, will be hardcode to 15 */
-        unsigned short int      bWOoffset; /* bit offset in output memory image, big-endian */
-        unsigned short int      WBitCount;  /* number of bits to write, big-endian */
-        unsigned char		WByteCount; /* bytes of data following, must be (WBitCount+7)/8 */
-        unsigned char           WByteData[1];  /*bytes to write */
-}__attribute__ ((packed))       MBT_F15_REQ;
-
-typedef struct MBT_F15_RES
-{
-        unsigned char           fCode;  /* Function code, must be 15 */
-        unsigned short int      bWOoffset; /* bit offset in output memory image, big-endian */
-        unsigned short int      WBitCount;  /* number of bits to write, big-endian */
-}__attribute__ ((packed))       MBT_F15_RES;
-
-/* MBT Function 16, Write Analong outputs and registers */
-typedef struct MBT_F16_REQ
-{
-        unsigned char           fCode;  /* Function code, will be hardcode to 16 */
-        unsigned short int      wWORoffset; /* word offset in output image and registers, big-endian */
-        unsigned short int      WWordCount;  /* number of words to write, big-endian */
-        unsigned char		WByteCount; /* bytes of data following, must be WWordCount*2 */
-        unsigned short int	WWordData[1];  /* words to write, big-endian */
-}__attribute__ ((packed))       MBT_F16_REQ;
-
-typedef struct MBT_F16_RES
-{
-        unsigned char           fCode;  /* Function code, must be 16 */
-        unsigned short int      wWORoffset; /* word offset in output image and registers, big-endian */
-        unsigned short int      WWordCount;  /* number of words to write, big-endian */
-}__attribute__ ((packed))       MBT_F16_RES;
-
-/* MBT Function 23, Read and Write Analong inputs and outputs and registers */
-typedef struct MBT_F23_REQ
-{
-        unsigned char           fCode;  /* Function code, will be hardcode to 23 */
-        unsigned short int      wRIRoffset; /* word offset in input memory image and registers, big-endian */
-        unsigned short int      RWordCount;  /* number of words to read, big-endian */
-        unsigned short int      wWORoffset; /* word offset in output memory image and registers, big-endian */
-        unsigned short int      WWordCount;  /* number of words to write, big-endian */
-	unsigned char		WByteCount;	 /* number of bytes to write, must be WWordCount*2 */
-	unsigned short int	WWordData[1];/* beginning of data */
-}__attribute__ ((packed))       MBT_F23_REQ;
-/* Response PDU for FUNC 23 is same as FUNC 3 */
-typedef struct MBT_F3_RES       MBT_F23_RES;
-
-
-
 
 /***********************************************************************************************************/
 /****************************************** Function prototype *********************************************/
@@ -351,7 +121,7 @@ typedef struct MBT_F3_RES       MBT_F23_RES;
 /* It is user's responsibility to guarantee unique deviceName */
 /* If you use ModBusTCP gateway and specify UNIT to 0, you must understand 0 means broadcast and you should  */
 /* Not use it to read any thing */
-ModBusTCP_Link MBT_Init(char * deviceName, char * deviceIP, unsigned short int port, unsigned char UNIT);
+ModBusTCP_Link MBT_Init( const char * deviceName,  const char * deviceIP, unsigned short int port, unsigned char UNIT);
 
 /* This function will close the connection to the MBT device and release all resource */
 int MBT_Release(ModBusTCP_Link mbt_link);
@@ -427,7 +197,7 @@ int MBT_Function4(ModBusTCP_Link mbt_link, unsigned short int wRIRoffset, unsign
 /* This function is doing MBT_F5, state will be TRUE(on) or FALSE(off) */
 /* Caller can use this function to set single digital output in output image */
 /* bWOoffset means bit write offset for Output image only */
-int MBT_Function5(ModBusTCP_Link mbt_link, unsigned short int bWOoffset, BOOL state, unsigned int toutsec);
+int MBT_Function5(ModBusTCP_Link mbt_link, unsigned short int bWOoffset, int state, unsigned int toutsec);
 
 /* This function is doing MBT_F6, Wworddata is local order, this function will convert it to big-endian then send */
 /* Caller can use this function to set single analog output in output image or write register */

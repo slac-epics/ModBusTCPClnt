@@ -7,6 +7,7 @@
 
 #include "iocsh.h"
 #include "drvModBusTCPClnt.h"
+#include "ModBusTCPClnt.h"
 
 #ifdef __cplusplus
 extern "C" {
