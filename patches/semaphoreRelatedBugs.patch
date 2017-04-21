@@ -1,0 +1,13 @@
+diff --git a/ModBusTCPClntApp/src/SocketWithTimeout.c b/ModBusTCPClntApp/src/SocketWithTimeout.c
+index c0b6c06..7c1661e 100644
+--- a/ModBusTCPClntApp/src/SocketWithTimeout.c
++++ b/ModBusTCPClntApp/src/SocketWithTimeout.c
+@@ -4,6 +4,8 @@
+ 
+ /* For read, write, socket, select, they are standard for every OS */
+ /* We provide socket_close, socket_ioctl and xxxWithTimeout here */
++#include <sys/types.h>
++#include <sys/select.h>
+ #include "SocketWithTimeout.h"
+ 
+ #ifndef vxWorks
