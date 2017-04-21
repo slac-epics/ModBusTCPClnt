@@ -20,6 +20,23 @@
 #
 #==============================================================
 
+R2.3.0-0.1.0:	Apr-21-2017: Marcio Donadio
+		This is the result of using patches/*.patch to bring PCDS
+		changes to LCLS version. Comments explaining the changes were
+		copied below from previous commits:
+		- Got rid of duplication between drvModBusTCPClnt.h and
+		ModBusTCPClnt.h
+		- Added more diagnostic messages and made error content more
+		specific.
+		- Made error messages always be printed instead of only when
+		the debug flag is set.
+		- Cleaned up inconsistent indentation, extra long lines, and
+		some compiler warnings.
+		- Changed bzero() calls to memset() to resolve compiler
+		warnings.
+		- Fixed some misc semaphore related bugs that only showed up in
+		the callers of ModBus functions.
+
 R2.3.0:			Apr-21-2017: Marcio Donadio
 			- Module migrated to EPICS 3.15, to GIT and to GIT 
 			workflow
