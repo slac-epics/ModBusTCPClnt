@@ -4,6 +4,8 @@
 
 /* For read, write, socket, select, they are standard for every OS */
 /* We provide socket_close, socket_ioctl and xxxWithTimeout here */
+#include <sys/types.h>
+#include <sys/select.h>
 #include "SocketWithTimeout.h"
 
 #ifndef vxWorks
