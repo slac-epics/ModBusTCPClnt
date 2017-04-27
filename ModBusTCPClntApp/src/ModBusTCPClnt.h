@@ -5,6 +5,7 @@
 #ifndef	_ModBusTCPClnt_H_
 #define	_ModBusTCPClnt_H_
 
+#include "epicsMutex.h"
 
 /**************************************************************************************************/
 /********************* Here are something about ModBusTCP specification ***************************/
@@ -91,7 +92,7 @@ extern "C" {
 /* ModBusTCP_CB and ModBusTCP_Link definitions */
 typedef struct ModBusTCP_CB
 {
-	void		*	semMbt; /* to protect access to mbt station */
+	epicsMutexId	semMbt; /* to protect access to mbt station */
 	char		*	name;	/* dynamic malloc for mbt station name */
 	struct sockaddr_in	addr;	/* all are network order */
 

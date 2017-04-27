@@ -129,7 +129,7 @@ ModBusTCP_Link MBT_Init( const char * deviceName,  const char * deviceIP, unsign
 	mbt_link->LtID = 0;
 
         /* Create semaphore, this is must have */
-	mbt_link->semMbt = SEM_CREATE();
+	mbt_link->semMbt = epicsMutexMustCreate();
 	if(mbt_link->semMbt == NULL)
 	{
 		printf("Failed to create semaphore!\n");
@@ -161,7 +161,7 @@ ModBusTCP_Link MBT_Init( const char * deviceName,  const char * deviceIP, unsign
 
 init_fail:
 	if(mbt_link->semMbt)
-		SEM_DELETE(mbt_link->semMbt);
+		epicsMutexDestroy(mbt_link->semMbt);
 	if(mbt_link->name)
 		free(mbt_link->name);
 	if(mbt_link)
@@ -178,15 +178,15 @@ int MBT_Release(ModBusTCP_Link mbt_link)
 		return -1;
 	}
 
-	SEM_TAKE(mbt_link->semMbt);
+	epicsMutexMustLock(mbt_link->semMbt);
 	if(mbt_link->linkStat==LINK_OK)
 	{
 		mbt_link->linkStat = LINK_DOWN; /* not so necessary */
 		socket_close(mbt_link->sFd);
 	}
-        /* SEM_GIVE(mbt_link->semMbt); */
+        /* epicsMutexUnlock(mbt_link->semMbt); */
 
-        if(mbt_link->semMbt) SEM_DELETE(mbt_link->semMbt);
+        if(mbt_link->semMbt) epicsMutexDestroy(mbt_link->semMbt);
         if(mbt_link->name) free(mbt_link->name);
 
 	free(mbt_link);
@@ -233,7 +233,7 @@ int MBT_Connect(ModBusTCP_Link mbt_link, unsigned int toutsec)
 	/* We only need semaphore to protect linkStat change to avoid reentry of MBT_Connect */
 	/* But for safety, we protect whole procedure */
 
-	SEM_TAKE(mbt_link->semMbt);
+	epicsMutexMustLock(mbt_link->semMbt);
 	if(mbt_link->linkStat==LINK_DOWN || mbt_link->linkStat==LINK_UNSUPPORTED)
 	{	/* We try to recover when it's down, even unsupported, user may change device configuration */
 		mbt_link->linkStat = LINK_CONNECTING;
@@ -243,7 +243,7 @@ int MBT_Connect(ModBusTCP_Link mbt_link, unsigned int toutsec)
 		{	/* Failed to create socket */
 			mbt_link->linkStat = LINK_DOWN;
 			mbt_link->lastErr = MBT_ERR_SOCKET_ERR;
-			SEM_GIVE(mbt_link->semMbt);
+			epicsMutexUnlock(mbt_link->semMbt);
 			if ( 1 )	/* if(MBT_DRV_DEBUG) */
 				printf("Failed to create socket!\n");
 			return -1;
@@ -258,7 +258,7 @@ int MBT_Connect(ModBusTCP_Link mbt_link, unsigned int toutsec)
 			mbt_link->lastErr = MBT_ERR_TCP_NDLY;
 			socket_close(mbt_link->sFd);
 			mbt_link->sFd = INVALID_SOCKET;
-			SEM_GIVE(mbt_link->semMbt);
+			epicsMutexUnlock(mbt_link->semMbt);
 			if(MBT_DRV_DEBUG)
 				printf("Failed to set socket to TCP_NODELAY!\n");
 			return -1;
@@ -272,7 +272,7 @@ int MBT_Connect(ModBusTCP_Link mbt_link, unsigned int toutsec)
 			mbt_link->lastErr = MBT_ERR_KEEP_ALIVE;
 			socket_close(mbt_link->sFd);
 			mbt_link->sFd = INVALID_SOCKET;
-			SEM_GIVE(mbt_link->semMbt);
+			epicsMutexUnlock(mbt_link->semMbt);
 			if(MBT_DRV_DEBUG)
 				printf("Failed to set socket to SO_KEEPALIVE!\n");
 			return -1;
@@ -310,7 +310,7 @@ int MBT_Connect(ModBusTCP_Link mbt_link, unsigned int toutsec)
 			}
 			socket_close(mbt_link->sFd);
 			mbt_link->sFd = INVALID_SOCKET;
-			SEM_GIVE(mbt_link->semMbt);
+			epicsMutexUnlock(mbt_link->semMbt);
 			return -1;
 		}
 
@@ -322,7 +322,7 @@ int MBT_Connect(ModBusTCP_Link mbt_link, unsigned int toutsec)
 
 		mbt_link->linkStat = LINK_OK;
 	}
-	SEM_GIVE(mbt_link->semMbt);
+	epicsMutexUnlock(mbt_link->semMbt);
 	return 0;
 }
 
@@ -350,7 +350,7 @@ int MBT_GetNthOfConn(ModBusTCP_Link mbt_link, unsigned int * pNthOfConn)
 /* The errCode 0 means no change to exsiting last error */
 int MBT_Disconnect(ModBusTCP_Link mbt_link, unsigned int errCode)
 {
-	SEM_TAKE(mbt_link->semMbt);
+	epicsMutexMustLock(mbt_link->semMbt);
 	if(mbt_link->linkStat==LINK_OK)
 	{
 		/* We only need do this when link is OK, or else we have no link to disconnect */
@@ -363,7 +363,7 @@ int MBT_Disconnect(ModBusTCP_Link mbt_link, unsigned int errCode)
 		/*mbt_link->remoteErrCnt = 0;*/	/* We define this the number of exceptions since last connection, so we don't reset it here */
 		/*mbt_link->NofPackets = 0;*/	/* This is N of packets we sent since last connection reset, we don't reset here */
 		/*mbt_link->LtID = 0;*/			/* We don't reset it here, we reset it when we re-connect */
-		SEM_GIVE(mbt_link->semMbt);
+		epicsMutexUnlock(mbt_link->semMbt);
 		if ( 1 )
 		{
 			char	errMsg[40];
@@ -373,7 +373,7 @@ int MBT_Disconnect(ModBusTCP_Link mbt_link, unsigned int errCode)
 	}
 	else
 	{
-		SEM_GIVE(mbt_link->semMbt);
+		epicsMutexUnlock(mbt_link->semMbt);
 	}
 	return 0;
 }
@@ -640,11 +640,11 @@ int MBT_Function1(ModBusTCP_Link mbt_link, unsigned short int bROoffset, unsigne
 	/* We don't check pRByteData, because we can only check NULL, how about else */
 	if(RBitCount == 0) return 0;
 
-	SEM_TAKE(mbt_link->semMbt);
+	epicsMutexMustLock(mbt_link->semMbt);
 	if(mbt_link->linkStat != LINK_OK)
 	{
 		mbt_link->lastErr = MBT_ERR_NO_LINK;
-		SEM_GIVE(mbt_link->semMbt);
+		epicsMutexUnlock(mbt_link->semMbt);
 		return -1;
 	}
 	/* prepare data to send */
@@ -660,7 +660,7 @@ int MBT_Function1(ModBusTCP_Link mbt_link, unsigned short int bROoffset, unsigne
 	if(status == SOCKET_ERROR)
 	{
 		/* MBT_Disconnect already called in MBT_Write_Request */
-		SEM_GIVE(mbt_link->semMbt);
+		epicsMutexUnlock(mbt_link->semMbt);
 		return -1;
 	}
 
@@ -670,7 +670,7 @@ int MBT_Function1(ModBusTCP_Link mbt_link, unsigned short int bROoffset, unsigne
 	if(status == SOCKET_ERROR)
 	{
 		/* MBT_Disconnect already called in MBT_Read_Response */
-		SEM_GIVE(mbt_link->semMbt);
+		epicsMutexUnlock(mbt_link->semMbt);
 		return -1;
 	}
 
@@ -680,13 +680,13 @@ int MBT_Function1(ModBusTCP_Link mbt_link, unsigned short int bROoffset, unsigne
 	{/* +2 is fCode and RByteCount himself */
 		MBT_Disconnect(mbt_link, MBT_ERR_DATA_SIZE);
 		free(pmbt_f1_res);
-		SEM_GIVE(mbt_link->semMbt);
+		epicsMutexUnlock(mbt_link->semMbt);
 		return -1;
 	}
 
 	memcpy(pRByteData, pmbt_f1_res->RByteData, pmbt_f1_res->RByteCount);
 	free(pmbt_f1_res);
-	SEM_GIVE(mbt_link->semMbt);
+	epicsMutexUnlock(mbt_link->semMbt);
 	if(MBT_DRV_DEBUG) printf("First data PDU F1: %d\n", pRByteData[0]);
 	return 0;
 }
@@ -709,11 +709,11 @@ int MBT_Function2(ModBusTCP_Link mbt_link, unsigned short int bRIoffset, unsigne
 	/* We don't check pRByteData, because we can only check NULL, how about else */
 	if(RBitCount == 0)
 		return 0;
-	SEM_TAKE(mbt_link->semMbt);
+	epicsMutexMustLock(mbt_link->semMbt);
 	if(mbt_link->linkStat != LINK_OK)
 	{
 		mbt_link->lastErr = MBT_ERR_NO_LINK;
-		SEM_GIVE(mbt_link->semMbt);
+		epicsMutexUnlock(mbt_link->semMbt);
 		return -1;
 	}
 
@@ -730,7 +730,7 @@ int MBT_Function2(ModBusTCP_Link mbt_link, unsigned short int bRIoffset, unsigne
 	if(status == SOCKET_ERROR)
 	{
 		/* MBT_Disconnect already called in MBT_Write_Request */
-		SEM_GIVE(mbt_link->semMbt);
+		epicsMutexUnlock(mbt_link->semMbt);
 		return -1;
 	}
 
@@ -740,7 +740,7 @@ int MBT_Function2(ModBusTCP_Link mbt_link, unsigned short int bRIoffset, unsigne
 	if(status == SOCKET_ERROR)
 	{
 		/* MBT_Disconnect already called in MBT_Read_Response */
-		SEM_GIVE(mbt_link->semMbt);
+		epicsMutexUnlock(mbt_link->semMbt);
 		return -1;
 	}
 
@@ -750,13 +750,13 @@ int MBT_Function2(ModBusTCP_Link mbt_link, unsigned short int bRIoffset, unsigne
 	{/* +2 is fCode and RByteCount himself */
 		MBT_Disconnect(mbt_link, MBT_ERR_DATA_SIZE);
 		free(pmbt_f2_res);
-		SEM_GIVE(mbt_link->semMbt);
+		epicsMutexUnlock(mbt_link->semMbt);
 		return -1;
 	}
 
 	memcpy(pRByteData, pmbt_f2_res->RByteData, pmbt_f2_res->RByteCount);
 	free(pmbt_f2_res);
-	SEM_GIVE(mbt_link->semMbt);
+	epicsMutexUnlock(mbt_link->semMbt);
 	if(MBT_DRV_DEBUG) printf("First data PDU F2: %d\n", pRByteData[0]);
 	return 0;
 }
@@ -786,11 +786,11 @@ int MBT_Function3(
 	/* We don't check pRWordData, because we can only check NULL, how about else */
 	if(RWordCount == 0)
 		return 0;
-	SEM_TAKE(mbt_link->semMbt);
+	epicsMutexMustLock(mbt_link->semMbt);
 	if(mbt_link->linkStat != LINK_OK)
 	{
 		mbt_link->lastErr = MBT_ERR_NO_LINK;
-		SEM_GIVE(mbt_link->semMbt);
+		epicsMutexUnlock(mbt_link->semMbt);
 		return -1;
 	}
 	/* prepare data to send */
@@ -806,7 +806,7 @@ int MBT_Function3(
 	if(status == SOCKET_ERROR)
 	{
 		/* MBT_Disconnect already called in MBT_Write_Request */
-		SEM_GIVE(mbt_link->semMbt);
+		epicsMutexUnlock(mbt_link->semMbt);
 		if ( 1 )	/* if(MBT_DRV_DEBUG) */
 			printf( "MBT_Function3: Write Socket Error!\n" );
 		return -1;
@@ -818,7 +818,7 @@ int MBT_Function3(
 	if(status == SOCKET_ERROR)
 	{
 		/* MBT_Disconnect already called in MBT_Read_Response */
-		SEM_GIVE(mbt_link->semMbt);
+		epicsMutexUnlock(mbt_link->semMbt);
 		if ( 1 )	/* if(MBT_DRV_DEBUG) */
 			printf( "MBT_Function3: Read Socket Error!\n" );
 		return -1;
@@ -830,7 +830,7 @@ int MBT_Function3(
 	{/* +2 is fCode and RByteCount himself */
 		MBT_Disconnect(mbt_link, MBT_ERR_DATA_SIZE);
 		free(pmbt_f3_res);
-		SEM_GIVE(mbt_link->semMbt);
+		epicsMutexUnlock(mbt_link->semMbt);
 		if (MBT_DRV_DEBUG)
 			printf( "MBT_Function3: Incorrect size %d\n", mbt_f3_res_size );
 		return -1;
@@ -839,7 +839,7 @@ int MBT_Function3(
 	for ( loop=0; loop<RWordCount; loop++ )
 		pRWordData[loop] = ntohs(pmbt_f3_res->RWordData[loop]);
 	free(pmbt_f3_res);
-	SEM_GIVE(mbt_link->semMbt);
+	epicsMutexUnlock(mbt_link->semMbt);
 	if(MBT_DRV_DEBUG)
 		printf("First data PDU F3: %d\n", pRWordData[0]);
 	return 0;
@@ -864,11 +864,11 @@ int MBT_Function4(ModBusTCP_Link mbt_link, unsigned short int wRIRoffset, unsign
 	/* We don't check pRWordData, because we can only check NULL, how about else */
 	if(RWordCount == 0)
 		return 0;
-	SEM_TAKE(mbt_link->semMbt);
+	epicsMutexMustLock(mbt_link->semMbt);
 	if(mbt_link->linkStat != LINK_OK)
 	{
 		mbt_link->lastErr = MBT_ERR_NO_LINK;
-		SEM_GIVE(mbt_link->semMbt);
+		epicsMutexUnlock(mbt_link->semMbt);
 		return -1;
 	}
 
@@ -885,7 +885,7 @@ int MBT_Function4(ModBusTCP_Link mbt_link, unsigned short int wRIRoffset, unsign
 	if(status == SOCKET_ERROR)
 	{
 		/* MBT_Disconnect already called in MBT_Write_Request */
-		SEM_GIVE(mbt_link->semMbt);
+		epicsMutexUnlock(mbt_link->semMbt);
 		return -1;
 	}
 
@@ -895,7 +895,7 @@ int MBT_Function4(ModBusTCP_Link mbt_link, unsigned short int wRIRoffset, unsign
 	if(status == SOCKET_ERROR)
 	{
 		/* MBT_Disconnect already called in MBT_Read_Response */
-		SEM_GIVE(mbt_link->semMbt);
+		epicsMutexUnlock(mbt_link->semMbt);
 		return -1;
 	}
 
@@ -904,14 +904,14 @@ int MBT_Function4(ModBusTCP_Link mbt_link, unsigned short int wRIRoffset, unsign
 	{/* +2 is fCode and RByteCount himself */
 		MBT_Disconnect(mbt_link, MBT_ERR_DATA_SIZE);
 		free(pmbt_f4_res);
-		SEM_GIVE(mbt_link->semMbt);
+		epicsMutexUnlock(mbt_link->semMbt);
 		return -1;
 	}
 
 	for(loop=0;loop<RWordCount;loop++)
 		pRWordData[loop] = ntohs(pmbt_f4_res->RWordData[loop]);
 	free(pmbt_f4_res);
-	SEM_GIVE(mbt_link->semMbt);
+	epicsMutexUnlock(mbt_link->semMbt);
 	if(MBT_DRV_DEBUG) printf("First data PDU F4: %d\n", pRWordData[0]);
 	return 0;
 }
@@ -931,11 +931,11 @@ int MBT_Function5(ModBusTCP_Link mbt_link, unsigned short int bWOoffset, int sta
 	if(mbt_link == NULL)
 		return -1;
 
-	SEM_TAKE(mbt_link->semMbt);
+	epicsMutexMustLock(mbt_link->semMbt);
 	if(mbt_link->linkStat != LINK_OK)
 	{
 		mbt_link->lastErr = MBT_ERR_NO_LINK;
-		SEM_GIVE(mbt_link->semMbt);
+		epicsMutexUnlock(mbt_link->semMbt);
 		return -1;
 	}
 	/* prepare data to send */
@@ -951,7 +951,7 @@ int MBT_Function5(ModBusTCP_Link mbt_link, unsigned short int bWOoffset, int sta
 	if(status == SOCKET_ERROR)
 	{
 		/* MBT_Disconnect already called in MBT_Write_Request */
-		SEM_GIVE(mbt_link->semMbt);
+		epicsMutexUnlock(mbt_link->semMbt);
 		return -1;
 	}
 
@@ -961,7 +961,7 @@ int MBT_Function5(ModBusTCP_Link mbt_link, unsigned short int bWOoffset, int sta
 	if(status == SOCKET_ERROR)
 	{
 		/* MBT_Disconnect already called in MBT_Read_Response */
-		SEM_GIVE(mbt_link->semMbt);
+		epicsMutexUnlock(mbt_link->semMbt);
 		return -1;
 	}
 
@@ -973,11 +973,11 @@ int MBT_Function5(ModBusTCP_Link mbt_link, unsigned short int bWOoffset, int sta
 	if( status || mbt_f5_res_size != sizeof(struct MBT_F5_REQ) )
 	{/* doesn't match */
 		MBT_Disconnect(mbt_link, MBT_ERR_WRITE_RESP);
-		SEM_GIVE(mbt_link->semMbt);
+		epicsMutexUnlock(mbt_link->semMbt);
 		return -1;
 	}
 
-	SEM_GIVE(mbt_link->semMbt);
+	epicsMutexUnlock(mbt_link->semMbt);
 	return 0;
 }
 
@@ -996,11 +996,11 @@ int MBT_Function6(ModBusTCP_Link mbt_link, unsigned short int wWORoffset, unsign
 	if(mbt_link == NULL)
 		return -1;
 
-	SEM_TAKE(mbt_link->semMbt);
+	epicsMutexMustLock(mbt_link->semMbt);
 	if(mbt_link->linkStat != LINK_OK)
 	{
 		mbt_link->lastErr = MBT_ERR_NO_LINK;
-		SEM_GIVE(mbt_link->semMbt);
+		epicsMutexUnlock(mbt_link->semMbt);
 		return -1;
 	}
 
@@ -1017,7 +1017,7 @@ int MBT_Function6(ModBusTCP_Link mbt_link, unsigned short int wWORoffset, unsign
 	if(status == SOCKET_ERROR)
 	{
 		/* MBT_Disconnect already called in MBT_Write_Request */
-		SEM_GIVE(mbt_link->semMbt);
+		epicsMutexUnlock(mbt_link->semMbt);
 		return -1;
 	}
 
@@ -1027,7 +1027,7 @@ int MBT_Function6(ModBusTCP_Link mbt_link, unsigned short int wWORoffset, unsign
 	if(status == SOCKET_ERROR)
 	{
 		/* MBT_Disconnect already called in MBT_Read_Response */
-		SEM_GIVE(mbt_link->semMbt);
+		epicsMutexUnlock(mbt_link->semMbt);
 		return -1;
 	}
 
@@ -1039,11 +1039,11 @@ int MBT_Function6(ModBusTCP_Link mbt_link, unsigned short int wWORoffset, unsign
 	if( status || mbt_f6_res_size != sizeof(struct MBT_F6_REQ) )
 	{/* doesn't match */
 		MBT_Disconnect(mbt_link, MBT_ERR_WRITE_RESP);
-		SEM_GIVE(mbt_link->semMbt);
+		epicsMutexUnlock(mbt_link->semMbt);
 		return -1;
 	}
 
-	SEM_GIVE(mbt_link->semMbt);
+	epicsMutexUnlock(mbt_link->semMbt);
 	return 0;
 }
 
@@ -1062,11 +1062,11 @@ int MBT_Function8(ModBusTCP_Link mbt_link, unsigned short int subFunction, unsig
 	if(mbt_link == NULL)
 		return -1;
 
-	SEM_TAKE(mbt_link->semMbt);
+	epicsMutexMustLock(mbt_link->semMbt);
 	if(mbt_link->linkStat != LINK_OK)
 	{
 		mbt_link->lastErr = MBT_ERR_NO_LINK;
-		SEM_GIVE(mbt_link->semMbt);
+		epicsMutexUnlock(mbt_link->semMbt);
 		return -1;
 	}
 	/* prepare data to send */
@@ -1082,7 +1082,7 @@ int MBT_Function8(ModBusTCP_Link mbt_link, unsigned short int subFunction, unsig
 	if(status == SOCKET_ERROR)
 	{
 		/* MBT_Disconnect already called in MBT_Write_Request */
-		SEM_GIVE(mbt_link->semMbt);
+		epicsMutexUnlock(mbt_link->semMbt);
 		return -1;
 	}
 
@@ -1092,7 +1092,7 @@ int MBT_Function8(ModBusTCP_Link mbt_link, unsigned short int subFunction, unsig
 	if(status == SOCKET_ERROR)
 	{
 		/* MBT_Disconnect already called in MBT_Read_Response */
-		SEM_GIVE(mbt_link->semMbt);
+		epicsMutexUnlock(mbt_link->semMbt);
 		return -1;
 	}
 
@@ -1101,7 +1101,7 @@ int MBT_Function8(ModBusTCP_Link mbt_link, unsigned short int subFunction, unsig
 	{/* doesn't match */
 		MBT_Disconnect(mbt_link, MBT_ERR_DIAG_RESP);
 		free(pmbt_f8_res);
-		SEM_GIVE(mbt_link->semMbt);
+		epicsMutexUnlock(mbt_link->semMbt);
 		return -1;
 	}
 
@@ -1110,13 +1110,13 @@ int MBT_Function8(ModBusTCP_Link mbt_link, unsigned short int subFunction, unsig
 	{/* sub-function code doesn't match */
 		MBT_Disconnect(mbt_link, MBT_ERR_WRNG_SFUNC);
 		free(pmbt_f8_res);
-		SEM_GIVE(mbt_link->semMbt);
+		epicsMutexUnlock(mbt_link->semMbt);
 		return -1;
 	}
 
 	*pRDworddata = ntohs(pmbt_f8_res->Dworddata);
 	free(pmbt_f8_res);
-	SEM_GIVE(mbt_link->semMbt);
+	epicsMutexUnlock(mbt_link->semMbt);
 	if(MBT_DRV_DEBUG) printf("Response Data of Diagnostics PDU F8: %d\n", *pRDworddata);
 	return 0;
 }
@@ -1140,11 +1140,11 @@ int MBT_Function15(ModBusTCP_Link mbt_link, unsigned short int bWOoffset, unsign
 	/* We don't check pWByteData, because we can only check NULL, how about else */
 	if(WBitCount == 0)
 		return 0;
-	SEM_TAKE(mbt_link->semMbt);
+	epicsMutexMustLock(mbt_link->semMbt);
 	if(mbt_link->linkStat != LINK_OK)
 	{
 		mbt_link->lastErr = MBT_ERR_NO_LINK;
-		SEM_GIVE(mbt_link->semMbt);
+		epicsMutexUnlock(mbt_link->semMbt);
 		return -1;
 	}
 	/* prepare data to send */
@@ -1153,7 +1153,7 @@ int MBT_Function15(ModBusTCP_Link mbt_link, unsigned short int bWOoffset, unsign
 	if( pmbt_f15_req == NULL)
 	{/* Fail to malloc memory */
 		MBT_Disconnect(mbt_link, MBT_ERR_REQPDU_BUF);
-		SEM_GIVE(mbt_link->semMbt);
+		epicsMutexUnlock(mbt_link->semMbt);
 		return -1;
 	}
 	pmbt_f15_req->fCode = 15;
@@ -1171,7 +1171,7 @@ int MBT_Function15(ModBusTCP_Link mbt_link, unsigned short int bWOoffset, unsign
 	{
 		/* MBT_Disconnect already called in MBT_Write_Request */
 		free(pmbt_f15_req);
-		SEM_GIVE(mbt_link->semMbt);
+		epicsMutexUnlock(mbt_link->semMbt);
 		return -1;
 	}
 
@@ -1182,7 +1182,7 @@ int MBT_Function15(ModBusTCP_Link mbt_link, unsigned short int bWOoffset, unsign
 	{
 		/* MBT_Disconnect already called in MBT_Read_Response */
 		free(pmbt_f15_req);
-		SEM_GIVE(mbt_link->semMbt);
+		epicsMutexUnlock(mbt_link->semMbt);
 		return -1;
 	}
 
@@ -1195,11 +1195,11 @@ int MBT_Function15(ModBusTCP_Link mbt_link, unsigned short int bWOoffset, unsign
 	if( status || mbt_f15_res_size != sizeof(struct MBT_F15_RES) )
 	{/* doesn't match */
 		MBT_Disconnect(mbt_link, MBT_ERR_WRITE_RESP);
-		SEM_GIVE(mbt_link->semMbt);
+		epicsMutexUnlock(mbt_link->semMbt);
 		return -1;
 	}
 
-	SEM_GIVE(mbt_link->semMbt);
+	epicsMutexUnlock(mbt_link->semMbt);
 	return 0;
 }
 
@@ -1223,11 +1223,11 @@ int MBT_Function16(ModBusTCP_Link mbt_link, unsigned short int wWORoffset, unsig
 	/* We don't check pWWordData, because we can only check NULL, how about else */
 	if(WWordCount == 0)
 		return 0;
-	SEM_TAKE(mbt_link->semMbt);
+	epicsMutexMustLock(mbt_link->semMbt);
 	if(mbt_link->linkStat != LINK_OK)
 	{
 		mbt_link->lastErr = MBT_ERR_NO_LINK;
-		SEM_GIVE(mbt_link->semMbt);
+		epicsMutexUnlock(mbt_link->semMbt);
 		return -1;
 	}
 	/* prepare data to send */
@@ -1236,7 +1236,7 @@ int MBT_Function16(ModBusTCP_Link mbt_link, unsigned short int wWORoffset, unsig
 	if( pmbt_f16_req == NULL)
 	{/* Fail to malloc memory */
 		MBT_Disconnect(mbt_link, MBT_ERR_REQPDU_BUF);
-		SEM_GIVE(mbt_link->semMbt);
+		epicsMutexUnlock(mbt_link->semMbt);
 		return -1;
 	}
 	pmbt_f16_req->fCode = 16;
@@ -1255,7 +1255,7 @@ int MBT_Function16(ModBusTCP_Link mbt_link, unsigned short int wWORoffset, unsig
 	{
 		/* MBT_Disconnect already called in MBT_Write_Request */
 		free(pmbt_f16_req);
-		SEM_GIVE(mbt_link->semMbt);
+		epicsMutexUnlock(mbt_link->semMbt);
 		return -1;
 	}
 
@@ -1266,7 +1266,7 @@ int MBT_Function16(ModBusTCP_Link mbt_link, unsigned short int wWORoffset, unsig
 	{
 		/* MBT_Disconnect already called in MBT_Read_Response */
 		free(pmbt_f16_req);
-		SEM_GIVE(mbt_link->semMbt);
+		epicsMutexUnlock(mbt_link->semMbt);
 		return -1;
 	}
 
@@ -1279,11 +1279,11 @@ int MBT_Function16(ModBusTCP_Link mbt_link, unsigned short int wWORoffset, unsig
 	if( status || mbt_f16_res_size != sizeof(struct MBT_F16_RES) )
 	{/* doesn't match */
 		MBT_Disconnect(mbt_link, MBT_ERR_WRITE_RESP);
-		SEM_GIVE(mbt_link->semMbt);
+		epicsMutexUnlock(mbt_link->semMbt);
 		return -1;
 	}
 
-	SEM_GIVE(mbt_link->semMbt);
+	epicsMutexUnlock(mbt_link->semMbt);
 	return 0;
 }
 
@@ -1311,11 +1311,11 @@ int MBT_Function23(ModBusTCP_Link mbt_link, unsigned short int wRIRoffset, unsig
 	/* We don't check pWWordData and pRWordData, because we can only check NULL, how about else */
 	if(RWordCount == 0 && WWordCount == 0)
 		return 0;
-	SEM_TAKE(mbt_link->semMbt);
+	epicsMutexMustLock(mbt_link->semMbt);
 	if(mbt_link->linkStat != LINK_OK)
 	{
 		mbt_link->lastErr = MBT_ERR_NO_LINK;
-		SEM_GIVE(mbt_link->semMbt);
+		epicsMutexUnlock(mbt_link->semMbt);
 		return -1;
 	}
 	/* prepare data to send */
@@ -1324,7 +1324,7 @@ int MBT_Function23(ModBusTCP_Link mbt_link, unsigned short int wRIRoffset, unsig
 	if( pmbt_f23_req == NULL)
 	{/* Fail to malloc memory */
 		MBT_Disconnect(mbt_link, MBT_ERR_REQPDU_BUF);
-		SEM_GIVE(mbt_link->semMbt);
+		epicsMutexUnlock(mbt_link->semMbt);
 		return -1;
 	}
 	pmbt_f23_req->fCode = 23;
@@ -1344,7 +1344,7 @@ int MBT_Function23(ModBusTCP_Link mbt_link, unsigned short int wRIRoffset, unsig
 	if(status == SOCKET_ERROR)
 	{
 		/* MBT_Disconnect already called in MBT_Write_Request */
-		SEM_GIVE(mbt_link->semMbt);
+		epicsMutexUnlock(mbt_link->semMbt);
 		return -1;
 	}
 
@@ -1354,7 +1354,7 @@ int MBT_Function23(ModBusTCP_Link mbt_link, unsigned short int wRIRoffset, unsig
 	if(status == SOCKET_ERROR)
 	{
 		/* MBT_Disconnect already called in MBT_Read_Response */
-		SEM_GIVE(mbt_link->semMbt);
+		epicsMutexUnlock(mbt_link->semMbt);
 		return -1;
 	}
 
@@ -1364,14 +1364,14 @@ int MBT_Function23(ModBusTCP_Link mbt_link, unsigned short int wRIRoffset, unsig
 	{/* +2 is fCode and RByteCount himself */
 		MBT_Disconnect(mbt_link, MBT_ERR_DATA_SIZE);
 		free(pmbt_f23_res);
-		SEM_GIVE(mbt_link->semMbt);
+		epicsMutexUnlock(mbt_link->semMbt);
 		return -1;
 	}
 
 	for(loop=0;loop<RWordCount;loop++)
 		pRWordData[loop] = ntohs(pmbt_f23_res->RWordData[loop]);
 	free(pmbt_f23_res);
-	SEM_GIVE(mbt_link->semMbt);
+	epicsMutexUnlock(mbt_link->semMbt);
 	if (MBT_DRV_DEBUG)
 		printf("First data PDU F23: %d\n", pRWordData[0]);
 	return 0;

@@ -7,29 +7,6 @@
 #include <netinet/in.h>
 #endif
 
-#ifdef	vxWorks
-#include "semLib.h"
-#define SEM_CREATE()    semMCreate(SEM_INVERSION_SAFE|SEM_DELETE_SAFE|SEM_Q_PRIORITY)
-#define SEM_DELETE(x)   semDelete((SEMAPHORE)(x))
-#define SEM_TAKE(x)     semTake((SEMAPHORE)(x),WAIT_FOREVER)
-#define SEM_GIVE(x)     semGive((SEMAPHORE)(x))
-#define	SEMAPHORE	SEM_ID
-#else
-#include <epicsVersion.h>
-#if     EPICS_VERSION>=3 && EPICS_REVISION>=14
-#include "epicsMutex.h"
-#else
-#error  "You need EPICS 3.14 or above because we need OSI support!"
-#endif
-
-#define SEM_CREATE()    epicsMutexMustCreate()
-#define SEM_DELETE(x)   epicsMutexDestroy((SEMAPHORE)(x))
-#define SEM_TAKE(x)     epicsMutexMustLock((SEMAPHORE)(x))
-#define SEM_GIVE(x)     epicsMutexUnlock((SEMAPHORE)(x))
-#define	SEMAPHORE	epicsMutexId
-typedef	int	BOOL;
-#endif
-
 #ifdef __cplusplus
 extern "C" {
 #endif  /* __cplusplus */
