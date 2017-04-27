@@ -20,7 +20,7 @@
 #
 #==============================================================
 
-R2.3.0-0.1.0:	Apr-21-2017: Marcio Donadio
+R2.3.0-1.0.0:	Apr-26-2017: Marcio Donadio
 		This is the result of using patches/*.patch to bring PCDS
 		changes to LCLS version. Comments explaining the changes were
 		copied below from previous commits:
