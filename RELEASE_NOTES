@@ -20,6 +20,10 @@
 #
 #==============================================================
 
+R2.3.0-1.1.0:	2018-11-06 Bruce Hill
+	Fixed test for EPICS_VERSION to handle EPICS 7
+	Resolved several deprecated warnings.
+
 R2.3.0-1.0.0:	Apr-26-2017: Marcio Donadio
 		This is the result of using patches/*.patch to bring PCDS
 		changes to LCLS version. Comments explaining the changes were
