@@ -19,7 +19,6 @@
 #include <devLib.h>
 #include <link.h>
 #include <dbScan.h>
-#include <dbAccess.h>
 #include <special.h>
 #include <cvtTable.h>
 #include <drvSup.h>
