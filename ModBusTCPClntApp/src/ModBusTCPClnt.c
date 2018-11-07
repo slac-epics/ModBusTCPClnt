@@ -117,7 +117,7 @@ ModBusTCP_Link MBT_Init( const char * deviceName,  const char * deviceIP, unsign
 		return NULL;
 	}
 
-	/* Most of structure member will be inited by bzero */
+	/* Most of structure members will be initialized by memset */
 	memset( (char *)mbt_link, 0, sizeof(struct ModBusTCP_CB) );
 	mbt_link->sFd = INVALID_SOCKET;
 	/* below is not necessary because they are already 0, just here for emphasis */
@@ -146,7 +146,7 @@ ModBusTCP_Link MBT_Init( const char * deviceName,  const char * deviceIP, unsign
 	strcpy(mbt_link->name, deviceName);
 
 	/* Set up addr stucture, this is must have */
-	bzero( (char *)&(mbt_link->addr), sizeof (struct sockaddr_in) );
+	memset( (char *)&(mbt_link->addr), 0, sizeof (struct sockaddr_in) );
 	mbt_link->addr.sin_family = AF_INET;
 	if( port == 0 )
 		port = DFT_MBT_PORT;
