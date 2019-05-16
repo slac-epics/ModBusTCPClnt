@@ -43,9 +43,7 @@ const struct drvet drvModBusTCPClnt = {2,                              /*2 Table
 	                         (DRVSUPFUN) MBT_Clnt_EPICS_Report,      /* Driver Report Routine */
 			         (DRVSUPFUN) MBT_Clnt_EPICS_Init};       /* Driver Initialization Routine */
 
-#if     EPICS_VERSION>=3 && EPICS_REVISION>=14
 epicsExportAddress(drvet,drvModBusTCPClnt);
-#endif
 
 static  long    MBT_Clnt_EPICS_Init()
 {
