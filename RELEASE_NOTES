@@ -19,6 +19,8 @@
 #          release modBusTCPClnt-R2-0-0
 #
 #==============================================================
+R2.3.0-1.2.0:	2019-05-16 Hugo Slepicka
+	Fixed test for EPICS_VERSION to handle EPICS 7
 
 R2.3.0-1.1.0:	2018-11-06 Bruce Hill
 	Fixed test for EPICS_VERSION to handle EPICS 7
