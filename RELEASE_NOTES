@@ -19,6 +19,9 @@
 #          release modBusTCPClnt-R2-0-0
 #
 #==============================================================
+R2.3.0-1.2.1:	2019-09-12 Bruce Hill
+	Fix build error that didn't create ModBusTCPClnt_registerRecordDeviceDriver.cpp
+
 R2.3.0-1.2.0:	2019-05-16 Hugo Slepicka
 	Fixed test for EPICS_VERSION to handle EPICS 7
 
