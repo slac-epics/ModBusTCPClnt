@@ -40,6 +40,7 @@ ModBusTCPClnt_SRCS += SocketWithTimeout.c
 ModBusTCPClnt_SRCS += ModBusTCPClnt.c
 ModBusTCPClnt_SRCS += drvModBusTCPClnt.c
 ModBusTCPClnt_SRCS += drvModBusTCPClntRegister.cpp
+ModBusTCPClnt_SRCS += ModBusTCPClnt_registerRecordDeviceDriver.cpp
 # The following builds sncExample as a component of ModBusTCPClnt
 # Also in ModBusTCPClntInclude.dbd uncomment #registrar(sncExampleRegistrar)
 #ModBusTCPClnt_SRCS += sncExample.stt
@@ -48,7 +49,6 @@ ModBusTCPClnt_SRCS += drvModBusTCPClntRegister.cpp
 # The PROD_IOC_vxWorks is built from the same srcs and must include
 # the registry routines.
 ModBusTCPClntLib_SRCS += $(ModBusTCPClnt_SRCS)
-ModBusTCPClntLib_SRCS += ModBusTCPClnt_registerRecordDeviceDriver.cpp
 
 #===========================
 
